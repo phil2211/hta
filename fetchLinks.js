@@ -168,9 +168,8 @@ async function enhanceDocuments(insertedIds) {
         await connectToMongoDB(); // Ensure connection before insertion
     }
     const db = client.db(dbName);
-    const collection = db.collection(collectionName);
+        const collection = db.collection(collectionName);
 
-    try {
         const enhancedDocuments = [];
 
         for (const id of insertedIds) {
@@ -204,47 +203,52 @@ async function enhanceDocuments(insertedIds) {
                 }
                 const detailData = {};
 
-                // Extract Record ID and Language
                 const titleReds = cardBody.querySelectorAll('.title-red');
                 if (titleReds.length >= 3) {
                     detailData.recordID = titleReds[1].textContent.replace("Record ID", "").trim();
                     detailData.language = titleReds[2].textContent.trim();
-                } else {
-                    console.warn(`.title-red divs are less than three. Can not get recordID and language from  ${document.url}`);
                 }
 
+                let currentTopLevelKey = null; // Keep track of the current top-level key
 
-                // Extract data from sub-title divs
-                const subTitles = cardBody.querySelectorAll('.sub-title');
-                subTitles.forEach(subTitle => {
-                    const keyElement = subTitle.querySelector('b');
-                    if (keyElement) {
-                        let key = keyElement.textContent.replace(/[:\s]+$/, '').trim(); // Remove trailing colons and spaces
+                const allContent = cardBody.querySelectorAll('.sub-title, .exerpt'); // Select both
 
-                        //handle special cases for key
-                        if (key.startsWith("Authors")) {
-                            key = "Authors objectives";
-                        }
-
-                        // Get the value (everything but the <b> tag)
-                        let value = '';
-                        for (let node of subTitle.childNodes) {
-                            if (node.nodeType === 3) { // Text node
-                                value += node.textContent;
-                            } else if (node.nodeType === 1 && node.tagName !== 'B') { // Element node (excluding <b>)
-                                if (node.tagName === 'A') {
-                                    value += node.href; // Use href for links
-                                } else {
-                                    value += node.textContent;
+                allContent.forEach(element => {
+                    if (element.classList.contains('exerpt')) {
+                        currentTopLevelKey = element.textContent.trim(); // Set the top-level key
+                        detailData[currentTopLevelKey] = {}; // Initialize as an object
+                    } else if (element.classList.contains('sub-title')) {
+                        if (currentTopLevelKey) { // Only process if a top-level key is set
+                            const keyElement = element.querySelector('b');
+                            if (keyElement) {
+                                let key = keyElement.textContent.replace(/[:\s]+$/, '').trim();
+                                 if (key.startsWith("Authors")) {
+                                    key = "Authors objectives";
                                 }
-                            }
-                        }
 
-                        detailData[key] = value.trim();
+                                let value = '';
+                                for (let node of element.childNodes) {
+                                    if (node.nodeType === 3) {
+                                        value += node.textContent;
+                                    } else if (node.nodeType === 1 && node.tagName !== 'B') {
+                                        if (node.tagName === 'A') {
+                                            value += node.href;
+                                        } else {
+                                            value += node.textContent;
+                                        }
+                                    }
+                                }
+
+                                // Add as a sub-property of the current top-level key
+                                detailData[currentTopLevelKey][key] = value.trim();
+                            }
+
+                        }
                     }
                 });
 
-                // Combine the fetched document with the extracted details
+
+
                 const enhancedDocument = { ...document, ...detailData };
 
                 // Update the document in MongoDB
@@ -260,11 +264,6 @@ async function enhanceDocuments(insertedIds) {
             }
         }
         return enhancedDocuments;
-
-    } catch (error) {
-        console.error('Error in enhanceDocuments:', error);
-        throw error;
-    }
 }
 
 
