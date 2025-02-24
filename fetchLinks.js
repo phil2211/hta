@@ -174,6 +174,7 @@ async function enhanceDocuments(insertedIds) {
         const enhancedDocuments = [];
 
         for (const id of insertedIds) {
+            console.log(`Processing document with ID ${id}...`);
             // Fetch the document from MongoDB
             const document = await collection.findOne({ _id: id });
 
@@ -205,11 +206,11 @@ async function enhanceDocuments(insertedIds) {
 
                 // Extract Record ID and Language
                 const titleReds = cardBody.querySelectorAll('.title-red');
-                if (titleReds.length >= 2) {
-                    detailData.recordID = titleReds[0].textContent.replace("Record ID", "").trim();
-                    detailData.language = titleReds[1].textContent.trim();
+                if (titleReds.length >= 3) {
+                    detailData.recordID = titleReds[1].textContent.replace("Record ID", "").trim();
+                    detailData.language = titleReds[2].textContent.trim();
                 } else {
-                    console.warn(`.title-red divs are less than two. Can not get recordID and language from  ${document.url}`);
+                    console.warn(`.title-red divs are less than three. Can not get recordID and language from  ${document.url}`);
                 }
 
 
@@ -296,7 +297,7 @@ function removeBrackets(str) {
 async function main() {
     try {
         await connectToMongoDB(); // Connect to MongoDB *before* fetching
-        const url = 'https://database.inahta.org/?utm_source=chatgpt.com&filter-country=Sweden&sort=publish_year&direction=desc&page=1';
+        const url = 'https://database.inahta.org/?utm_source=chatgpt.com&filter-country=Sweden&sort=publish_year&direction=desc&page=1&filter-status=Completed';
         const results = await processPdfLinks(url);
 
     } catch (error) {
