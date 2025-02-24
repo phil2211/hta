@@ -126,7 +126,7 @@ async function insertDocumentsToMongoDB(documents) {
             source: doc.metadata.source,
             title: doc.metadata.title ? removeBrackets(doc.metadata.title.text) : null,  //Handle cases where the title cell is not a link.
             url: doc.metadata.title ? doc.metadata.title.url : null,   //Handle as above.
-            _id: articleId // Use the extracted ID as _id
+            _id: Number(articleId) // Use the extracted ID as _id
         };
 
         return mongoDoc;
@@ -205,7 +205,7 @@ async function enhanceDocuments(insertedIds) {
 
                 const titleReds = cardBody.querySelectorAll('.title-red');
                 if (titleReds.length >= 3) {
-                    detailData.recordID = titleReds[1].textContent.replace("Record ID", "").trim();
+                    detailData.recordID = Number(titleReds[1].textContent.replace("Record ID", "").trim());
                     detailData.language = titleReds[2].textContent.trim();
                 } else {
                      console.warn(`.title-red divs are less than three. Can not get recordID and language from  ${document.url}`);
