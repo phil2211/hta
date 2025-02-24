@@ -1,0 +1,16 @@
+{
+  "name": "hta_fetcher",
+  "version": "1.0.0",
+  "description": "Fetches data from the international HTA database",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Philip Eschenbacher",
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "langchain": "^0.3.19",
+    "mongodb": "^6.13.1"
+  }
+}
