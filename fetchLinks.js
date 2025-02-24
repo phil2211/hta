@@ -207,46 +207,86 @@ async function enhanceDocuments(insertedIds) {
                 if (titleReds.length >= 3) {
                     detailData.recordID = titleReds[1].textContent.replace("Record ID", "").trim();
                     detailData.language = titleReds[2].textContent.trim();
+                } else {
+                     console.warn(`.title-red divs are less than three. Can not get recordID and language from  ${document.url}`);
                 }
 
-                let currentTopLevelKey = null; // Keep track of the current top-level key
+                // Find potential "top-level" subtitle after the first title-red
+                const topLevelElement = doc.querySelector("#app > main > div > div.col-md-6 > div > div.card.card-record > div.card-body > div:nth-child(5) > b");
+                let topLevelKey = null;
+                if (topLevelElement && topLevelElement.parentElement.classList.contains('sub-title')) {
+                  topLevelKey = topLevelElement.textContent.replace(/[:\s]+$/, '').trim();
+                  detailData[topLevelKey] = {}; //initialize it as object
+                }
 
-                const allContent = cardBody.querySelectorAll('.sub-title, .exerpt'); // Select both
 
-                allContent.forEach(element => {
-                    if (element.classList.contains('exerpt')) {
-                        currentTopLevelKey = element.textContent.trim(); // Set the top-level key
-                        detailData[currentTopLevelKey] = {}; // Initialize as an object
-                    } else if (element.classList.contains('sub-title')) {
-                        if (currentTopLevelKey) { // Only process if a top-level key is set
-                            const keyElement = element.querySelector('b');
-                            if (keyElement) {
-                                let key = keyElement.textContent.replace(/[:\s]+$/, '').trim();
-                                 if (key.startsWith("Authors")) {
-                                    key = "Authors objectives";
+                let currentTopLevel = null;
+                const subTitles = cardBody.querySelectorAll('.sub-title');
+                subTitles.forEach(subTitle => {
+                    const excerptElement = subTitle.previousElementSibling;
+                    if(excerptElement && excerptElement.classList.contains('exerpt')){
+                        currentTopLevel = excerptElement.textContent.trim();
+                        detailData[currentTopLevel] = {}; // Initialize as an object
+                        return; // Continue to the next subtitle, as this one is a top level.
+                    }
+
+                    const keyElement = subTitle.querySelector('b');
+                    if (keyElement) {
+                        let key = keyElement.textContent.replace(/[:\s]+$/, '').trim();
+                         if (key.startsWith("Authors")) {
+                            key = "Authors objectives";
+                        }
+
+                        let value = '';
+                        for (let node of subTitle.childNodes) {
+                            if (node.nodeType === 3) {
+                                value += node.textContent;
+                            } else if (node.nodeType === 1 && node.tagName !== 'B') {
+                                if (node.tagName === 'A') {
+                                    value += node.href;
+                                } else {
+                                    value += node.textContent;
                                 }
-
-                                let value = '';
-                                for (let node of element.childNodes) {
-                                    if (node.nodeType === 3) {
-                                        value += node.textContent;
-                                    } else if (node.nodeType === 1 && node.tagName !== 'B') {
-                                        if (node.tagName === 'A') {
-                                            value += node.href;
-                                        } else {
-                                            value += node.textContent;
-                                        }
-                                    }
-                                }
-
-                                // Add as a sub-property of the current top-level key
-                                detailData[currentTopLevelKey][key] = value.trim();
                             }
+                        }
 
+                        // Add to appropriate top-level key, or directly to detailData
+                        if (currentTopLevel && detailData[currentTopLevel]) {
+                            detailData[currentTopLevel][key] = value.trim();
+                        } else if (topLevelKey && subTitle.parentElement.querySelector("div:nth-child(5) > b") == keyElement) {
+                          //Special case for subtitle directly under a title red div
+                            detailData[topLevelKey] = value.trim();
+
+                        } else if(topLevelKey && detailData[topLevelKey] )
+                        {
+                             detailData[topLevelKey][key] = value.trim();
+                        }
+
+                        else {
+                            detailData[key] = value.trim();
                         }
                     }
                 });
 
+
+
+              //Add handling for ul lists, similar to exerpt
+                const listTitles = cardBody.querySelectorAll("ul");
+
+                listTitles.forEach(ul => {
+                     const excerptElement = ul.previousElementSibling;
+                     if(excerptElement && excerptElement.classList.contains('exerpt')){
+                        currentTopLevel = excerptElement.textContent.trim();
+                        detailData[currentTopLevel] = {};
+
+                        const listItems = ul.querySelectorAll("li");
+                        detailData[currentTopLevel] = []; // Initialize as an array;
+                         listItems.forEach( li => {
+                             detailData[currentTopLevel].push(li.textContent.trim());
+                         })
+                        return; // Continue to the next subtitle, as this one is a top level.
+                    }
+                });
 
 
                 const enhancedDocument = { ...document, ...detailData };
@@ -259,12 +299,12 @@ async function enhanceDocuments(insertedIds) {
                 enhancedDocuments.push(enhancedDocument);
 
             } catch (error) {
-                console.error(`Error processing document with ID ${id}:`, error);
-                enhancedDocuments.push(document); //push the unenhanced document.
+                console.error(`Error processing document with ID ${id} and URL ${document.url}:`, error);
+                enhancedDocuments.push(document); // Push the unenhanced document
             }
         }
         return enhancedDocuments;
-}
+    }
 
 
 // Main function
