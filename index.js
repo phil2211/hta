@@ -5,6 +5,7 @@ import { extractTableData } from './extractTableData.js';
 import { createDocuments } from './createDocuments.js';
 import { insertDocumentsToMongoDB } from './insertDocuments.js';
 import { enhanceDocuments } from './enhanceDocuments.js';
+import { addMetaEmbedding } from './createMetaEmbedding.js';
 import { url } from './config.js';
 
 

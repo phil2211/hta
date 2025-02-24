@@ -1,8 +1,8 @@
-// --- enhanceDocuments.js ---
 import { getMongoClient } from './mongoDB.js';
 import { dbName, collectionName } from './config.js';
 import { fetchHtml } from './fetchHtml.js';
 import jsdom from "jsdom";
+import { addMetaEmbedding } from './createMetaEmbedding.js';
 const { JSDOM } = jsdom;
 
 
@@ -130,7 +130,9 @@ export async function enhanceDocuments(insertedIds) {
 
 
             const enhancedDocument = { ...document, ...detailData };
-            await collection.updateOne({ _id: id }, { $set: detailData });
+            // create embeddings for the metadata
+            const enhancedDocumentWithEmbedding = await addMetaEmbedding(enhancedDocument);
+            await collection.replaceOne({ _id: id }, enhancedDocumentWithEmbedding);
             enhancedDocuments.push(enhancedDocument);
 
         } catch (error) {
