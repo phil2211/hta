@@ -4,11 +4,12 @@ const { URL } = require('url');
 const { Document } = require("langchain/document");
 const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const { MongoClient } = require('mongodb');
+require('dotenv').config(); // Load environment variables
 
 // --- MongoDB Connection Setup ---
-const mongoUri = "mongodb+srv://mongo:Q5sr8n6msyfGJ72A@test-hta-document-proce.lkslk.mongodb.net/"; // Replace with your MongoDB URI
-const dbName = "hta";
-const collectionName = "links";
+const mongoUri = process.env.MONGO_URI;
+const dbName = process.env.DB_NAME;
+const collectionName = process.env.COLLECTION_NAME;
 
 const client = new MongoClient(mongoUri);
 
