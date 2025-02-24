@@ -4,6 +4,9 @@ const { URL } = require('url');
 const { Document } = require("langchain/document");
 const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const { MongoClient } = require('mongodb');
+const jsdom = require("jsdom");
+const { JSDOM } = jsdom;
+
 require('dotenv').config(); // Load environment variables
 
 // --- MongoDB Connection Setup ---
@@ -123,7 +126,6 @@ async function insertDocumentsToMongoDB(documents) {
             source: doc.metadata.source,
             title: doc.metadata.title ? removeBrackets(doc.metadata.title.text) : null,  //Handle cases where the title cell is not a link.
             url: doc.metadata.title ? doc.metadata.title.url : null,   //Handle as above.
-            pdfUrl: doc.metadata.pdf ? doc.metadata.pdf.url : null, //Handle cases where pdf is not available
             _id: articleId // Use the extracted ID as _id
         };
 
@@ -161,6 +163,110 @@ async function insertDocumentsToMongoDB(documents) {
     return insertedIds; // Return the array of inserted IDs
 }
 
+async function enhanceDocuments(insertedIds) {
+    if (!client.topology || !client.topology.isConnected()) {
+        await connectToMongoDB(); // Ensure connection before insertion
+    }
+    const db = client.db(dbName);
+    const collection = db.collection(collectionName);
+
+    try {
+        const enhancedDocuments = [];
+
+        for (const id of insertedIds) {
+            // Fetch the document from MongoDB
+            const document = await collection.findOne({ _id: id });
+
+            if (!document) {
+                console.warn(`Document with ID ${id} not found in MongoDB.`);
+                continue; // Skip if document not found
+            }
+
+            if (!document.url) {
+                console.warn(`Document with ID ${id} does not have a URL field.`);
+                enhancedDocuments.push(document);  // Add the document as is, without enhancements
+                continue;
+            }
+
+            try {
+                // Fetch and parse the HTML content
+                const html = await fetchHtml(document.url);
+                const dom = new JSDOM(html);
+                const doc = dom.window.document;
+
+                // Find the card-body div
+                const cardBody = doc.querySelector('.card-body');
+                if (!cardBody) {
+                    console.warn(`No .card-body found in ${document.url}. Skipping detail extraction.`);
+                    enhancedDocuments.push(document);
+                    continue; //skip this one
+                }
+                const detailData = {};
+
+                // Extract Record ID and Language
+                const titleReds = cardBody.querySelectorAll('.title-red');
+                if (titleReds.length >= 2) {
+                    detailData.recordID = titleReds[0].textContent.replace("Record ID", "").trim();
+                    detailData.language = titleReds[1].textContent.trim();
+                } else {
+                    console.warn(`.title-red divs are less than two. Can not get recordID and language from  ${document.url}`);
+                }
+
+
+                // Extract data from sub-title divs
+                const subTitles = cardBody.querySelectorAll('.sub-title');
+                subTitles.forEach(subTitle => {
+                    const keyElement = subTitle.querySelector('b');
+                    if (keyElement) {
+                        let key = keyElement.textContent.replace(/[:\s]+$/, '').trim(); // Remove trailing colons and spaces
+
+                        //handle special cases for key
+                        if (key.startsWith("Authors")) {
+                            key = "Authors objectives";
+                        }
+
+                        // Get the value (everything but the <b> tag)
+                        let value = '';
+                        for (let node of subTitle.childNodes) {
+                            if (node.nodeType === 3) { // Text node
+                                value += node.textContent;
+                            } else if (node.nodeType === 1 && node.tagName !== 'B') { // Element node (excluding <b>)
+                                if (node.tagName === 'A') {
+                                    value += node.href; // Use href for links
+                                } else {
+                                    value += node.textContent;
+                                }
+                            }
+                        }
+
+                        detailData[key] = value.trim();
+                    }
+                });
+
+                // Combine the fetched document with the extracted details
+                const enhancedDocument = { ...document, ...detailData };
+
+                // Update the document in MongoDB
+                await collection.updateOne(
+                    { _id: id },
+                    { $set: detailData }
+                );
+                enhancedDocuments.push(enhancedDocument);
+
+            } catch (error) {
+                console.error(`Error processing document with ID ${id}:`, error);
+                enhancedDocuments.push(document); //push the unenhanced document.
+            }
+        }
+        return enhancedDocuments;
+
+    } catch (error) {
+        console.error('Error in enhanceDocuments:', error);
+        throw error;
+    }
+}
+
+
 // Main function
 async function processPdfLinks(url) {
     try {
@@ -172,7 +278,9 @@ async function processPdfLinks(url) {
         const documents = await createDocuments(tableData);
         // 4 Store documents in MongoDB
         const insertedIds = await insertDocumentsToMongoDB(documents); // Insert into MongoDB
-        return { originalDocuments: documents };
+        // 5 get detail page content of newly found documents
+        const enhancedDocuments = await enhanceDocuments(insertedIds);
+        return enhancedDocuments;
 
     } catch (error) {
         console.error('Error processing PDF links:', error);
