@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "process:hta": "node index.js"
   },
   "author": "Philip Eschenbacher",
   "license": "MIT",
