@@ -7,6 +7,7 @@ import { insertDocumentsToMongoDB } from './insertDocuments.js';
 import { enhanceDocument } from './enhanceDocument.js';
 import { extractTextFromHTADocument } from './processPublishedReport.js';
 import { createEmbeddings } from './createEmbeddings.js';
+import { sendSummary } from './sendSummaryMail.js';
 import { translateToEnglish } from './translateToEnglish.js';
 import { summarize } from './createSummary.js';
 import { url, dbName, documentCollection, embeddingCollection } from './config.js';
@@ -51,13 +52,13 @@ async function processPdfLinks(url) {
             (6). Enhance the documents with additional data
                 from it's detail page and add it to MongoDB
             */
-            const enhancedDocument = await enhanceDocument(id);
-            await documentCollectionName.replaceOne({ _id: id }, enhancedDocument);
+            const enhancedDocumentContent = await enhanceDocument(id);
+            await documentCollectionName.replaceOne({ _id: id }, enhancedDocumentContent);
             /*
             (7). Download published report and extract the text and store it 
                  in MongoDB as original text
             */
-            const text = await extractTextFromHTADocument(enhancedDocument);
+            const text = await extractTextFromHTADocument(enhancedDocumentContent);
             await documentCollectionName.updateOne({ _id: id }, { $set: { reportOriginalText: text } });
 
             /*
@@ -78,6 +79,10 @@ async function processPdfLinks(url) {
             const embeddings = await createEmbeddings(text, id);
             await embeddingCollectionName.deleteMany({ documentId: id });
             await embeddingCollectionName.insertMany(embeddings);
+            /*
+            (11). Send a summary mail
+            */          
+            await sendSummary(id);
 
         }
     } catch (error) {
