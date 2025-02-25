@@ -5,6 +5,7 @@ import { extractTableData } from './extractTableData.js';
 import { createDocuments } from './createDocuments.js';
 import { insertDocumentsToMongoDB } from './insertDocuments.js';
 import { enhanceDocument } from './enhanceDocument.js';
+import { extractTextFromHTADocument } from './processPublishedReport.js';
 import { addMetaEmbedding } from './createMetaEmbedding.js';
 import { url, dbName, collectionName } from './config.js';
 
@@ -20,35 +21,40 @@ async function processPdfLinks(url) {
 
     try {
         /* 
-        (1) get the main page with the document list 
+        (1). get the main page with the document list 
           (initial you need to load all pages, but once 
           done you can just load page 1 sorted by publish date)
         */
         const html = await fetchHtml(url);
         /* 
-        (2) extract the table data from that page
+        (2). extract the table data from that page
         */
         const tableData = await extractTableData(html, url);
         /* 
-        (3) create MongoDB documents from the table data
+        (3). create MongoDB documents from the table data
         */
         const documents = await createDocuments(tableData);
         /*
-        (4) Store the documents in MongoDB using the articleID as primary
+        (4). Store the documents in MongoDB using the articleID as primary
             key to detect duplicates. This function returns only new inserted
             IDs.
         */
         const insertedIds = await insertDocumentsToMongoDB(documents);
         /*
-        (5) Loop over new inserted IDs
+        (5). Loop over new inserted IDs
         */
         for (const id of insertedIds) {
             /*
-            (6) Enhance the documents with additional data
-                from it's detail page
+            (6). Enhance the documents with additional data
+                from it's detail page and add it to MongoDB
             */
             const enhancedDocument = await enhanceDocument(id);
             await collection.replaceOne({ _id: id }, enhancedDocument);
+            /*
+            (7). Download published report and extract the text
+            */
+            const text = await extractTextFromHTADocument(enhancedDocument);
+            await collection.updateOne({ _id: id }, { $set: { text } });
         }
     } catch (error) {
         console.error('Error processing PDF links:', error);
