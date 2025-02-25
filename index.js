@@ -19,11 +19,34 @@ async function processPdfLinks(url) {
     const collection = db.collection(collectionName);
 
     try {
+        /* 
+        (1) get the main page with the document list 
+          (initial you need to load all pages, but once 
+          done you can just load page 1 sorted by publish date)
+        */
         const html = await fetchHtml(url);
+        /* 
+        (2) extract the table data from that page
+        */
         const tableData = await extractTableData(html, url);
+        /* 
+        (3) create MongoDB documents from the table data
+        */
         const documents = await createDocuments(tableData);
+        /*
+        (4) Store the documents in MongoDB using the articleID as primary
+            key to detect duplicates. This function returns only new inserted
+            IDs.
+        */
         const insertedIds = await insertDocumentsToMongoDB(documents);
+        /*
+        (5) Loop over new inserted IDs
+        */
         for (const id of insertedIds) {
+            /*
+            (6) Enhance the documents with additional data
+                from it's detail page
+            */
             const enhancedDocument = await enhanceDocument(id);
             await collection.replaceOne({ _id: id }, enhancedDocument);
         }
