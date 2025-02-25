@@ -7,6 +7,7 @@ import { insertDocumentsToMongoDB } from './insertDocuments.js';
 import { enhanceDocument } from './enhanceDocument.js';
 import { extractTextFromHTADocument } from './processPublishedReport.js';
 import { translateToEnglish } from './translateToEnglish.js';
+import { summarize } from './createSummary.js';
 import { addMetaEmbedding } from './createMetaEmbedding.js';
 import { url, dbName, collectionName } from './config.js';
 
@@ -61,8 +62,14 @@ async function processPdfLinks(url) {
             /*
             (8). Use OpenAI to translate the text to English and store it in MongoDB
             */
-            const englishText = await translateToEnglish(text);
-            await collection.updateOne({ _id: id }, { $set: { reportEnglishText: englishText } });
+            //const englishText = await translateToEnglish(text);
+            //await collection.updateOne({ _id: id }, { $set: { AIreportEnglishText: englishText } });
+
+            /*
+            (9). Create a summary of the text and store it in MongoDB
+            */
+            const summary = await summarize(text);
+            await collection.updateOne({ _id: id }, { $set: { AIreportSummary: summary } });
 
         }
     } catch (error) {
