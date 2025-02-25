@@ -7,18 +7,32 @@ import Chatbot, {
 
 function MyApp() {
   const suggestedPrompts = [
-    "Why should I use the MongoDB Chatbot Framework?",
-    "How does the framework use Atlas Vector Search?",
-    "Do you support using LLMs from OpenAI?",
+    "Do you have any information about clinical cancer research?",
+    "Give me some insight about cost reduction in the healthcare industry."
   ];
+  const initialMessageText =
+    "Hello and welcome to the HTA AI system. How can I help you today?";
   return (
-    <div>
-      <Chatbot darkMode={true} serverBaseUrl="http://localhost:3000/api/v1">
+    <div className="main">
+      <header className="main-header">
+        <h1>Welcome to the HTA AI system</h1>
+        <p>
+        AI-Driven HTA Document Retrieval, Storage, and LLM-Powered Analysis for Affiliates.
+        </p>
+      </header>
+      <Chatbot
+        serverBaseUrl={import.meta.env.VITE_SERVER_BASE_URL}
+        isExperimental={false}
+      >
         <>
-          <InputBarTrigger suggestedPrompts={suggestedPrompts} />
-          <FloatingActionButtonTrigger text="My MongoDB AI" />
+          <InputBarTrigger
+            suggestedPrompts={suggestedPrompts}
+            placeholder="What would you like to know?"
+            className="input-bar"
+          />
+          <FloatingActionButtonTrigger text="Gilded Age Gourmet" />
           <ModalView
-            initialMessageText="Welcome to MongoDB AI Assistant. What can I help you with?"
+            initialMessageText={initialMessageText}
             initialMessageSuggestedPrompts={suggestedPrompts}
           />
         </>

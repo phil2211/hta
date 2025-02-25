@@ -1,13 +1,13 @@
 {
-  "name": "mongodb-chatbot-framework-quick-start",
+  "name": "hta-chatbot",
   "version": "1.0.0",
-  "description": "Quick start code for MongoDB Chatbot Framework",
+  "description": "Quick start code for MongoDB Chatbot Framework using the Fannie Farmer Cookbook",
   "workspaces": [
     "packages/*"
   ],
   "private": true,
   "scripts": {
-    "process:hta": "npm run process:hta --workspace=fetcher",
+    "ingest:all": "npm run ingest:all --workspace=ingest",
     "dev": "npm run dev --workspace=server & npm run dev --workspace=ui"
   },
   "author": "",

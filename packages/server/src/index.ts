@@ -1,9 +1,11 @@
 import {
+  MongoClient,
   makeMongoDbEmbeddedContentStore,
   makeOpenAiEmbedder,
   makeMongoDbConversationsService,
   AppConfig,
   makeOpenAiChatLlm,
+  OpenAiChatMessage,
   SystemPrompt,
   makeDefaultFindContent,
   logger,
@@ -11,11 +13,15 @@ import {
   GenerateUserPromptFunc,
   makeRagGenerateUserPrompt,
   MakeUserMessageFunc,
+  UserMessage,
 } from "mongodb-chatbot-server";
-import { OpenAI } from "mongodb-rag-core/openai";
-import { MongoClient } from "mongodb-rag-core/mongodb";
+import { OpenAIClient, OpenAIKeyCredential } from "@azure/openai";
 import path from "path";
 import { loadEnvVars } from "./loadEnvVars";
+import {
+  makeLangchainOpenAiLlm,
+  makeStepBackPromptingPreprocessor,
+} from "./stepBackPromptingPreProcessor";
 
 // Load project environment variables
 const dotenvPath = path.join(__dirname, "..", "..", "..", ".env"); // .env at project root
@@ -30,15 +36,15 @@ const {
 
 // Create the OpenAI client
 // for interacting with the OpenAI API (ChatGPT API and Embedding API)
-const openAiClient = new OpenAI({ apiKey: OPENAI_API_KEY });
+const openAiClient = new OpenAIClient(new OpenAIKeyCredential(OPENAI_API_KEY));
 
 // Chatbot LLM for responding to the user's query.
 const llm = makeOpenAiChatLlm({
   openAiClient,
   deployment: OPENAI_CHAT_COMPLETION_MODEL,
   openAiLmmConfigOptions: {
-    temperature: 0,
-    max_tokens: 500,
+    temperature: 0.5, // Turn up the temperature to make the chatbot more creative
+    maxTokens: 500,
   },
 });
 
@@ -47,10 +53,6 @@ const llm = makeOpenAiChatLlm({
 const embeddedContentStore = makeMongoDbEmbeddedContentStore({
   connectionUri: MONGODB_CONNECTION_URI,
   databaseName: MONGODB_DATABASE_NAME,
-  collectionName: "embeddings",
-  searchIndex: {
-    embeddingName: OPENAI_EMBEDDING_MODEL,
-  },
 });
 
 // Creates vector embeddings for user queries to find matching content
@@ -70,14 +72,10 @@ const findContent = makeDefaultFindContent({
   embedder,
   store: embeddedContentStore,
   findNearestNeighborsOptions: {
-    k: 5,
+    k: 3,
     path: "embedding",
     indexName: VECTOR_SEARCH_INDEX_NAME,
-    // Note: you may want to adjust the minScore depending
-    // on the embedding model you use. We've found 0.9 works well
-    // for OpenAI's text-embedding-ada-02 model for most use cases,
-    // but you may want to adjust this value if you're using a different model.
-    minScore: 0.3,
+    minScore: 0.5,
   },
 });
 
@@ -86,12 +84,11 @@ const findContent = makeDefaultFindContent({
 const makeUserMessage: MakeUserMessageFunc = async function ({
   content,
   originalUserMessage,
+  preprocessedUserMessage,
 }) {
-  console.log("HEEEEELLLLLLLOOOOOOO**************************************");
-  console.log(content);
   const chunkSeparator = "~~~~~~";
   const context = content.map((c) => c.text).join(`\n${chunkSeparator}\n`);
-  const contentForLlm = `Using the following information in swedish language, answer the english user query in english.
+  const contentForLlm = `Using the following information, answer the user query.
 Different pieces of information are separated by "${chunkSeparator}".
 
 Information:
@@ -99,24 +96,30 @@ ${context}
 
 
 User query: ${originalUserMessage}`;
-  return { role: "user", content: contentForLlm };
+  return {
+    role: "user",
+    content: originalUserMessage,
+    preprocessedContent: preprocessedUserMessage,
+    contentForLlm,
+    contextContent: content.map((c) => ({ text: c.text, url: c.url })),
+  };
 };
 
 // Generates the user prompt for the chatbot using RAG
 const generateUserPrompt: GenerateUserPromptFunc = makeRagGenerateUserPrompt({
   findContent,
   makeUserMessage,
+  queryPreprocessor: makeStepBackPromptingPreprocessor(
+    // @ts-ignore
+    makeLangchainOpenAiLlm(OPENAI_CHAT_COMPLETION_MODEL, OPENAI_API_KEY)
+  ),
 });
 
 // System prompt for chatbot
 const systemPrompt: SystemPrompt = {
   role: "system",
-  content: `You are an assistant to users translating and explaining swedish documents from the international HTA database.
-Answer their questions about the swedish HTA reports in a friendly conversational tone.
-Format your answers in Markdown.
-Be concise in your answers.
-If you do not know the answer to the question based on the information provided,
-respond: "I'm sorry, I don't know the answer to that question. Please try to rephrase it. Refer to the below information to see if it helps."`,
+  content: `You are the Regulatory Reimbursement Authority, embodying the spirit of a seasoned expert in drug reimbursement and Health Technology Assessment (HTA) processes, offering insights into regulatory documentation and procedures. You maintain a formal yet occasionally approachable tone, providing an authoritative yet understandable experience. You use precise, industry-standard terminology, adding to the professional authenticity of the interaction. You exhibit a particular enthusiasm for detailed HTA documentation and a fondness for navigating complex regulatory frameworks, reflecting the intricacies of the field.  This makes you an excellent guide for users seeking to understand and interpret drug reimbursement policies. The Regulatory Reimbursement Authority skillfully clarifies based on available information, ensuring a helpful and educational conversation.
+Be concise and precise in your responses. Limit your responses to a few paragraphs.`,
 };
 
 // Create MongoDB collection and service for storing user conversations
@@ -130,9 +133,9 @@ const conversations = makeMongoDbConversationsService(
 const config: AppConfig = {
   conversationsRouterConfig: {
     llm,
-    conversations,
     generateUserPrompt,
     systemPrompt,
+    conversations,
   },
   maxRequestTimeoutMs: 30000,
 };
@@ -140,6 +143,7 @@ const config: AppConfig = {
 // Start the server and clean up resources on SIGINT.
 const PORT = process.env.PORT || 3000;
 const startServer = async () => {
+  await mongodb.connect();
   logger.info("Starting server...");
   const app = await makeApp(config);
   const server = app.listen(PORT, () => {

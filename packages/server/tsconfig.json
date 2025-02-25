@@ -1,17 +1,16 @@
 {
   "compilerOptions": {
-    "module": "NodeNext",
+    "module": "commonjs",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2022",
     "noImplicitAny": true,
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "build",
     "baseUrl": ".",
-    "paths": {
-      "*": ["node_modules/*", "src/types/*"]
-    }
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "../../node_modules", "**/*.test.ts", "build"]
 }
