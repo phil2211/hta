@@ -17,11 +17,10 @@ async function createEmbeddings(text, documentId, metadata) {
 
 
     const results = [];
-    let chunkIndex = 1;
+    let chunkIndex = 0;
 
     for (const chunk of output) {
-      console.log(`Generating embedding for chunk ${chunkIndex} of ${output.length}`);
-      chunkIndex++;
+      console.log(`Generating embedding for chunk ${chunkIndex+1} of ${output.length}`);
 
       const embeddingResponse = await openai.embeddings.create({
         model: "text-embedding-3-large",
@@ -31,16 +30,21 @@ async function createEmbeddings(text, documentId, metadata) {
       if (embeddingResponse.data && embeddingResponse.data.length > 0) {
           const embedding = embeddingResponse.data[0].embedding;
           results.push({
+              chunkIndex,
               text: chunk.pageContent,
               embedding: embedding,
-              documentId: documentId
+              documentId: documentId,
+              sourceName: metadata.title,
+              url: metadata.url,
+              chunkAigoHash: "059d469c3c09fff9031ed285d714b9713399e024d9a99f64f01e1d587c5c9459"
+
           });
       } else {
           console.warn("Received empty embedding response for chunk:", chunk.pageContent);
           // Handle empty response (e.g., skip, retry, or throw error)
           throw new Error("Received empty embedding response"); //example handling
       }
-
+      chunkIndex++;
     }
 
     return results;

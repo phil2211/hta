@@ -1,4 +1,3 @@
-// --- createDocuments.js ---
 import { Document } from "langchain/document";
 
 export async function createDocuments(tableData) {

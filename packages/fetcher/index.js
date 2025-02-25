@@ -59,28 +59,22 @@ async function processPdfLinks(url) {
                  in MongoDB as original text
             */
             const text = await extractTextFromHTADocument(enhancedDocumentContent);
-            await documentCollectionName.updateOne({ _id: id }, { $set: { reportOriginalText: text } });
+            await documentCollectionName.updateOne({ _id: id }, { $set: { body: text } });
 
             /*
-            (8). Use OpenAI to translate the text to English and store it in MongoDB
-            */
-            //const englishText = await translateToEnglish(text);
-            //await documentCollectionName.updateOne({ _id: id }, { $set: { AIreportEnglishText: englishText } });
-
-            /*
-            (9). Create a summary of the text and store it in MongoDB
+            (8). Create a summary of the text and store it in MongoDB
             */
             const summary = await summarize(text);
             await documentCollectionName.updateOne({ _id: id }, { $set: { AIreportSummary: summary } });
 
             /*
-            (10). Create embeddings for the text in chunks and store it in MongoDB
+            (9). Create embeddings for the text in chunks and store it in MongoDB
             */
             const embeddings = await createEmbeddings(text, id, enhancedDocumentContent);
             await embeddingCollectionName.deleteMany({ documentId: id });
             await embeddingCollectionName.insertMany(embeddings);
             /*
-            (11). Send a summary mail
+            (10). Send a summary mail
             */          
             await sendSummary(id);
 

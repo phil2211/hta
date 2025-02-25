@@ -34,6 +34,10 @@ async function extractTextFromHTADocument(document) {
             throw new Error("URL for published report not found in the document.");
         }
 
+        if (!reportUrl.endsWith(".pdf")) {
+            throw new Error("URL does not point to a PDF file");
+        }
+
         // 1. Download the PDF
         const tempDir = os.tmpdir();
         const fileName = `report_${Date.now()}.pdf`; //unique filename

@@ -26,7 +26,7 @@ async function summarize(text) {
 - **Any Urgent Aspects Requiring Attention:** (e.g., deadlines, critical data releases, regulatory changes, market events)
 
 Input Text:
-${text}
+${text.slice(0, 100000)}
 
 Summary:
 `;
