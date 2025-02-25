@@ -1,4 +1,3 @@
-// --- extractTableData.js ---
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
 
