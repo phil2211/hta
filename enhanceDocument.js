@@ -1,7 +1,7 @@
 import { fetchHtml } from './fetchHtml.js';
 import jsdom from "jsdom";
 import { getMongoClient } from './mongoDB.js';
-import { collectionName, dbName } from './config.js';
+import { documentCollection, dbName } from './config.js';
 const { JSDOM } = jsdom;
 
 
@@ -11,7 +11,7 @@ export async function enhanceDocument(id) {
         await connectToMongoDB(); // Ensure connection
     }
     const db = client.db(dbName);
-    const collection = db.collection(collectionName);
+    const collection = db.collection(documentCollection);
 
     console.log(`Processing document with ID ${id}...`);
     const document = await collection.findOne({ _id: id });

@@ -1,6 +1,6 @@
 // --- insertDocuments.js ---
 import { getMongoClient } from './mongoDB.js';
-import { dbName, collectionName } from './config.js';
+import { dbName, documentCollection } from './config.js';
 import {removeBrackets} from './utils.js';
 
 
@@ -10,7 +10,7 @@ export async function insertDocumentsToMongoDB(documents) {
         await connectToMongoDB(); // Ensure connection before insertion
     }
     const db = client.db(dbName);
-    const collection = db.collection(collectionName);
+    const collection = db.collection(documentCollection);
 
     const documentsToInsert = documents.map(doc => {
         let articleId = null;

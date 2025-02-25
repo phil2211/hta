@@ -8,8 +8,7 @@ import { enhanceDocument } from './enhanceDocument.js';
 import { extractTextFromHTADocument } from './processPublishedReport.js';
 import { translateToEnglish } from './translateToEnglish.js';
 import { summarize } from './createSummary.js';
-import { addMetaEmbedding } from './createMetaEmbedding.js';
-import { url, dbName, collectionName } from './config.js';
+import { url, dbName, documentCollection } from './config.js';
 
 
 // Main function
@@ -19,7 +18,7 @@ async function processPdfLinks(url) {
         await connectToMongoDB(); // Ensure connection
     }
     const db = client.db(dbName);
-    const collection = db.collection(collectionName);
+    const collection = db.collection(documentCollection);
 
     try {
         /* 
