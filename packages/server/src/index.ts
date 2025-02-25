@@ -47,6 +47,7 @@ const llm = makeOpenAiChatLlm({
 const embeddedContentStore = makeMongoDbEmbeddedContentStore({
   connectionUri: MONGODB_CONNECTION_URI,
   databaseName: MONGODB_DATABASE_NAME,
+  collectionName: "embeddings",
   searchIndex: {
     embeddingName: OPENAI_EMBEDDING_MODEL,
   },
@@ -76,7 +77,7 @@ const findContent = makeDefaultFindContent({
     // on the embedding model you use. We've found 0.9 works well
     // for OpenAI's text-embedding-ada-02 model for most use cases,
     // but you may want to adjust this value if you're using a different model.
-    minScore: 0.9,
+    minScore: 0.3,
   },
 });
 
@@ -86,9 +87,11 @@ const makeUserMessage: MakeUserMessageFunc = async function ({
   content,
   originalUserMessage,
 }) {
+  console.log("HEEEEELLLLLLLOOOOOOO**************************************");
+  console.log(content);
   const chunkSeparator = "~~~~~~";
   const context = content.map((c) => c.text).join(`\n${chunkSeparator}\n`);
-  const contentForLlm = `Using the following information, answer the user query.
+  const contentForLlm = `Using the following information in swedish language, answer the english user query in english.
 Different pieces of information are separated by "${chunkSeparator}".
 
 Information:
@@ -108,8 +111,8 @@ const generateUserPrompt: GenerateUserPromptFunc = makeRagGenerateUserPrompt({
 // System prompt for chatbot
 const systemPrompt: SystemPrompt = {
   role: "system",
-  content: `You are an assistant to users of the MongoDB Chatbot Framework.
-Answer their questions about the framework in a friendly conversational tone.
+  content: `You are an assistant to users translating and explaining swedish documents from the international HTA database.
+Answer their questions about the swedish HTA reports in a friendly conversational tone.
 Format your answers in Markdown.
 Be concise in your answers.
 If you do not know the answer to the question based on the information provided,

@@ -76,7 +76,7 @@ async function processPdfLinks(url) {
             /*
             (10). Create embeddings for the text in chunks and store it in MongoDB
             */
-            const embeddings = await createEmbeddings(text, id);
+            const embeddings = await createEmbeddings(text, id, enhancedDocumentContent);
             await embeddingCollectionName.deleteMany({ documentId: id });
             await embeddingCollectionName.insertMany(embeddings);
             /*

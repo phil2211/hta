@@ -1,5 +1,5 @@
 {
-  "name": "hta_fetcher",
+  "name": "fetcher",
   "version": "1.0.0",
   "description": "Fetches data from the international HTA database",
   "main": "index.js",

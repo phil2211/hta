@@ -2,7 +2,7 @@ import { OpenAI } from "openai";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { openAIKey } from "./config.js";
 
-async function createEmbeddings(text, documentId) {
+async function createEmbeddings(text, documentId, metadata) {
   try {
     const openai = new OpenAI({
         apiKey: openAIKey
@@ -31,7 +31,7 @@ async function createEmbeddings(text, documentId) {
       if (embeddingResponse.data && embeddingResponse.data.length > 0) {
           const embedding = embeddingResponse.data[0].embedding;
           results.push({
-              chunk: chunk.pageContent,
+              text: chunk.pageContent,
               embedding: embedding,
               documentId: documentId
           });
