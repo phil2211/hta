@@ -6,9 +6,10 @@ import { createDocuments } from './createDocuments.js';
 import { insertDocumentsToMongoDB } from './insertDocuments.js';
 import { enhanceDocument } from './enhanceDocument.js';
 import { extractTextFromHTADocument } from './processPublishedReport.js';
+import { createEmbeddings } from './createEmbeddings.js';
 import { translateToEnglish } from './translateToEnglish.js';
 import { summarize } from './createSummary.js';
-import { url, dbName, documentCollection } from './config.js';
+import { url, dbName, documentCollection, embeddingCollection } from './config.js';
 
 
 // Main function
@@ -18,7 +19,8 @@ async function processPdfLinks(url) {
         await connectToMongoDB(); // Ensure connection
     }
     const db = client.db(dbName);
-    const collection = db.collection(documentCollection);
+    const documentCollectionName = db.collection(documentCollection);
+    const embeddingCollectionName = db.collection(embeddingCollection);
 
     try {
         /* 
@@ -50,25 +52,32 @@ async function processPdfLinks(url) {
                 from it's detail page and add it to MongoDB
             */
             const enhancedDocument = await enhanceDocument(id);
-            await collection.replaceOne({ _id: id }, enhancedDocument);
+            await documentCollectionName.replaceOne({ _id: id }, enhancedDocument);
             /*
             (7). Download published report and extract the text and store it 
                  in MongoDB as original text
             */
             const text = await extractTextFromHTADocument(enhancedDocument);
-            await collection.updateOne({ _id: id }, { $set: { reportOriginalText: text } });
+            await documentCollectionName.updateOne({ _id: id }, { $set: { reportOriginalText: text } });
 
             /*
             (8). Use OpenAI to translate the text to English and store it in MongoDB
             */
             //const englishText = await translateToEnglish(text);
-            //await collection.updateOne({ _id: id }, { $set: { AIreportEnglishText: englishText } });
+            //await documentCollectionName.updateOne({ _id: id }, { $set: { AIreportEnglishText: englishText } });
 
             /*
             (9). Create a summary of the text and store it in MongoDB
             */
             const summary = await summarize(text);
-            await collection.updateOne({ _id: id }, { $set: { AIreportSummary: summary } });
+            await documentCollectionName.updateOne({ _id: id }, { $set: { AIreportSummary: summary } });
+
+            /*
+            (10). Create embeddings for the text in chunks and store it in MongoDB
+            */
+            const embeddings = await createEmbeddings(text, id);
+            await embeddingCollectionName.deleteMany({ documentId: id });
+            await embeddingCollectionName.insertMany(embeddings);
 
         }
     } catch (error) {

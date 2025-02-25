@@ -17,6 +17,7 @@ export async function connectToMongoDB() {
 export async function closeMongoDBConnection() {
     await client.close();
     console.log("MongoDB connection closed.");
+    return true;
 }
 
 

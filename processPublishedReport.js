@@ -60,7 +60,7 @@ async function extractTextFromHTADocument(document) {
 
     } catch (error) {
         console.error("Error extracting text:", error);
-        throw error; // Re-throw the error to be handled by the caller.  Important for proper error propagation.
+        return `Error extracting text: ${error.message}`; // Return the error message
     }
 }
 

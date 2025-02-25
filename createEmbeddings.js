@@ -1,37 +1,56 @@
-import OpenAI from "openai";
-import { openAIKey } from "./config.js"; 
+import { OpenAI } from "openai";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { openAIKey } from "./config.js";
 
-/**
- * Generates text embeddings using OpenAI's latest embedding model.
- *
- * @param {string} text The text to generate embeddings for.
- * @returns {Promise<number[] | null>} A promise that resolves to an array of numbers representing the embedding, or null if an error occurs.
- * @throws {Error} If the OpenAI API key is missing or invalid, or if the OpenAI API request fails.
- */
-async function createEmbeddings(text) {
-
-  const openai = new OpenAI({ apiKey: openAIKey });
-
+async function createEmbeddings(text, documentId) {
   try {
-    const response = await openai.embeddings.create({
-      input: text,
-      model: "text-embedding-3-large"
+    const openai = new OpenAI({
+        apiKey: openAIKey
     });
 
-    if (response.data && response.data.length > 0 && response.data[0].embedding) {
-      return response.data[0].embedding;
-    } else {
-      console.error("Unexpected response structure from OpenAI:", response);
-      return null; // Or throw an error, depending on desired error handling.
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 10000,  // Adjust chunk size as needed
+      chunkOverlap: 200, // Adjust overlap as needed
+    });
+
+    const output = await splitter.createDocuments([text]);
+
+
+    const results = [];
+    let chunkIndex = 1;
+
+    for (const chunk of output) {
+      console.log(`Generating embedding for chunk ${chunkIndex} of ${output.length}`);
+      chunkIndex++;
+
+      const embeddingResponse = await openai.embeddings.create({
+        model: "text-embedding-3-large",
+        input: chunk.pageContent,
+      });
+
+      if (embeddingResponse.data && embeddingResponse.data.length > 0) {
+          const embedding = embeddingResponse.data[0].embedding;
+          results.push({
+              chunk: chunk.pageContent,
+              embedding: embedding,
+              documentId: documentId
+          });
+      } else {
+          console.warn("Received empty embedding response for chunk:", chunk.pageContent);
+          // Handle empty response (e.g., skip, retry, or throw error)
+          throw new Error("Received empty embedding response"); //example handling
+      }
+
     }
 
+    return results;
+
   } catch (error) {
-    console.error("Error creating embeddings:", error);
+    console.error("Error generating embeddings:", error);
     if (error.response) {
-        console.error(error.response.status);
-        console.error(error.response.data);
+        console.error("OpenAI API Error Details:", error.response.data);
     }
-    throw error; // Re-throw the error for handling by the caller.
+    throw error; // Re-throw the error to be handled by the caller
   }
 }
 
