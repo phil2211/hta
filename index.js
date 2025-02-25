@@ -6,6 +6,7 @@ import { createDocuments } from './createDocuments.js';
 import { insertDocumentsToMongoDB } from './insertDocuments.js';
 import { enhanceDocument } from './enhanceDocument.js';
 import { extractTextFromHTADocument } from './processPublishedReport.js';
+import { translateToEnglish } from './translateToEnglish.js';
 import { addMetaEmbedding } from './createMetaEmbedding.js';
 import { url, dbName, collectionName } from './config.js';
 
@@ -51,10 +52,18 @@ async function processPdfLinks(url) {
             const enhancedDocument = await enhanceDocument(id);
             await collection.replaceOne({ _id: id }, enhancedDocument);
             /*
-            (7). Download published report and extract the text
+            (7). Download published report and extract the text and store it 
+                 in MongoDB as original text
             */
             const text = await extractTextFromHTADocument(enhancedDocument);
-            await collection.updateOne({ _id: id }, { $set: { text } });
+            await collection.updateOne({ _id: id }, { $set: { reportOriginalText: text } });
+
+            /*
+            (8). Use OpenAI to translate the text to English and store it in MongoDB
+            */
+            const englishText = await translateToEnglish(text);
+            await collection.updateOne({ _id: id }, { $set: { reportEnglishText: englishText } });
+
         }
     } catch (error) {
         console.error('Error processing PDF links:', error);
